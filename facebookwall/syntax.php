@@ -189,28 +189,27 @@ class syntax_plugin_facebookwall extends DokuWiki_Syntax_Plugin
 			$fb_page_id = $data[FB_WALL_FAN_PAGE_ID];
 			
 			// Get the access token using app-id and secret
-			$token_url ="https://graph.facebook.com/oauth/access_token?client_id={$fb_app_id}&client_secret={$fb_secret}&grant_type=client_credentials";
+			$token_url ="https://graph.facebook.com/oauth/access_token?client_id={$fb_app_id}&type=client_cred&client_secret={$fb_secret}&grant_type=client_credentials";
 			$token_data = $this->getData( $token_url );
-			
-			$elements = split("=", $token_data );
+			$elements = json_decode($token_data, true);
 			if ( count($elements) < 2) {
 				$renderer->doc .= 'Access token could not be retrieved for Plugin '.$info['name'].': '.$this->error;
 				return;
-			}
-			$fb_access_token = $elements[1];
+			} 
+			$fb_access_token = $elements['access_token'];
 			
-            // Get the date format
-            $date_format = $this->getConf(FB_WALL_DATE_FORMAT);
-            $time_format = $this->getConf(FB_WALL_TIME_FORMAT);
-            $datetime_format = $date_format.' '.$time_format;
+            		// Get the date format
+            		$date_format = $this->getConf(FB_WALL_DATE_FORMAT);
+            		$time_format = $this->getConf(FB_WALL_TIME_FORMAT);
+           		$datetime_format = $date_format.' '.$time_format;
 
 			$numberOfEntries = $data[FB_WALL_NR_ENTRIES];
 			
-            // Get the time offset
-            //$offset = $this->get_timezone_offset( "America/Los_Angeles" );
-            $offset = 0;
+            		// Get the time offset
+            		//$offset = $this->get_timezone_offset( "America/Los_Angeles" );
+            		$offset = 0;
 
-			$fields = "id,message,picture,link,name,description,type,icon,created_time,from,object_id";
+			$fields = "id,message,full_picture,link,name,description,type,icon,created_time,from,object_id";
 			
 			$limit = $numberOfEntries + 5;
 			$json_link = "https://graph.facebook.com/{$fb_page_id}/feed?access_token={$fb_access_token}&fields={$fields}&limit={$limit}";
@@ -258,13 +257,13 @@ class syntax_plugin_facebookwall extends DokuWiki_Syntax_Plugin
                     $post['message_short'] = substr( $post['message_short'], 0, $index ).'...';
 				}
                 // Process the message                               
-                $post['message'] = str_replace("\r\n", '<html><br /></html>', $post['message'] );
-                $post['message'] = str_replace("\n", '<html><br /></html>', $post['message'] );
-				$post['message_short'] = str_replace("\r\n", '<html><br /></html>', $post['message_short'] );
-                $post['message_short'] = str_replace("\n", '<html><br /></html>', $post['message_short'] );
+                $post['message'] = str_replace("\r\n", " \\\\ ", $post['message'] );
+                $post['message'] = str_replace("\n", " \\\\ ", $post['message'] );
+		$post['message_short'] = str_replace("\r\n", " \\\\ ", $post['message_short'] );
+                $post['message_short'] = str_replace("\n", " \\\\ ", $post['message_short'] );
                 
                 $entry = str_replace('{message}', $post['message'], $entry );
-				$entry = str_replace('{message_short}', $post['message_short'], $entry );
+		$entry = str_replace('{message_short}', $post['message_short'], $entry );
                               
                 // Replace tags in template
                 $entry = str_replace('{date}', date( $date_format, strtotime($post['created_time'])), $entry );
@@ -272,14 +271,19 @@ class syntax_plugin_facebookwall extends DokuWiki_Syntax_Plugin
                 $entry = str_replace('{datetime}', date( $datetime_format, strtotime($post['created_time'])), $entry );
                 $entry = str_replace('{timestamp}', $post['created_time'], $entry );
                 
-				$pic = $post['picture'];
+		if ( $post['full_picture'] ) {
+				$pic = $post['full_picture'];
+				//return;
+
 				// Add a fix for urls with get parameters
 				if ( strpos($pic, '?') > 0 )
 				{
-					$pic .= '&.png';
+					$pic .= '&.jpg';
 				}
-				$entry = str_replace('{image}', $pic, $entry );
-				
+				$entry = str_replace('{image}', '<image>{{'.$pic.'?|}}</image>', $entry );
+		} else {
+			$entry = str_replace('{image}', '', $entry );
+		}						
                 // Url
                 $post_id = $post['id'];
                 $post_values = explode( "_", $post_id);
